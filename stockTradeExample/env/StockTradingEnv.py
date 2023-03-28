@@ -47,6 +47,8 @@ class StockTradingEnv(gym.Env):
                         5, 'Volume'].values / MAX_NUM_SHARES,
         ])
 
+        print(frame)
+
         # Append additional data and scale each value to between 0-1
         obs = np.append(frame, [[
             self.balance / MAX_ACCOUNT_BALANCE,
@@ -57,6 +59,7 @@ class StockTradingEnv(gym.Env):
             self.total_sales_value / (MAX_NUM_SHARES * MAX_SHARE_PRICE),
         ]], axis=0)
 
+        print(obs)
         return obs
 
     def _take_action(self, action):
