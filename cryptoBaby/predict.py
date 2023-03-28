@@ -1,24 +1,19 @@
-import gym
-import json
-import datetime as dt
-
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3 import PPO
 
-from env.StockTradingEnv import StockTradingEnv
+from env.CryptoTradingEnv import CryptoTradingEnv
 
 import pandas as pd
 
-df = pd.read_csv('./data/AAPL.csv')
-df = df.sort_values('Date')
+df = pd.read_csv('./data/IDNA.csv')
+df = df.sort_values('timestamp')
 
 # The algorithms require a vectorized environment to run
-env = DummyVecEnv([lambda: StockTradingEnv(df)])
+env = DummyVecEnv([lambda: CryptoTradingEnv(df)])
 
 model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=50)
 
-model.save("crackdabola")
+model.load("welcomeToHavai")
 
 obs = env.reset()
 
