@@ -13,7 +13,7 @@ env = DummyVecEnv([lambda: CryptoTradingEnv(df)])
 
 model = PPO("MlpPolicy", env, verbose=1)
 
-model.load("welcomeToHavai")
+model.load("dummy")
 
 obs = env.reset()
 
