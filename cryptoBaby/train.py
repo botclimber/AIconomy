@@ -19,6 +19,6 @@ df = df.sort_values('timestamp')
 env = DummyVecEnv([lambda: CryptoTradingEnv(df)])
 
 model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=5000)
+model.learn(total_timesteps=1000000)
 
 model.save("dummy")
