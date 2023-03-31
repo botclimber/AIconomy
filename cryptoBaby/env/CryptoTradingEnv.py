@@ -5,20 +5,35 @@ from gym import spaces
 import pandas as pd
 import numpy as np
 
-# Constants
+# time horizon of data that agent will analyze
 DAYS = 24
+
+# all considered variables in the observation space
 CONSIDER_VARIABLES = 6
+
+# initial balance
 INIT_BALANCE = 5e4
+
+# max steps in case of the agent gets stucked
 MAX_STEPS = 2e5
+
+# trade fee when buying or selling
 TRADE_FEE = 0.001
 
+
 class Wallet:
+    '''
+     agent wallet control cash flow
+    '''
 
     def __init__(self):
         self.balance = INIT_BALANCE
         self.holdings = 0
 
 class Transaction:
+    '''
+    regist a transaction
+    '''
     transType = {0: "buy", 2: "sell"}
 
     def __init__(self, action, coinCurrentValue, earns, paidFee, w, coinsAmount):
@@ -64,6 +79,12 @@ class CryptoTradingEnv(gym.Env):
 
         return observation
 
+    def  rewardSys(self, currentCoinPrice):
+        '''
+        computes reward
+        '''
+        return (self.wallet.balance + self.wallet.holdings * currentCoinPrice) - INIT_BALANCE
+
     def step(self, action):
         done = False
 
@@ -91,11 +112,8 @@ class CryptoTradingEnv(gym.Env):
             self.wallet.holdings -= self.wallet.holdings 
             self.transactions.append(Transaction(action, current_price, earns, fee, self.wallet, self.wallet.holdings))
 
-        # Calculate the current portfolio value
-        current_value = self.wallet.balance + self.wallet.holdings * current_price
-
         # Calculate the reward as the change in portfolio value
-        reward = current_value - INIT_BALANCE
+        reward = self.rewardSys(current_price)
 
         # Check if the episode is done
         self.current_step += 1
@@ -120,17 +138,7 @@ class CryptoTradingEnv(gym.Env):
         return sample
 
     def render(self, mode='human'):
-
-        print("Transactions: \n")
-        for x in self.transactions:
-            print("\t\t", x.__str__())
-
-        # Render the environment to the screen
-        print(f'Step: {self.current_step}')
-        print(f'Balance: {self.wallet.balance}')
-        print(f'Holdings: {self.wallet.holdings}')
-        print(f'Profit: {self.wallet.balance - INIT_BALANCE}')
-
+        pass
 
     def reset(self):
         # Reset the state of the environment to an initial state
