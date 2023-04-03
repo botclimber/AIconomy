@@ -22,15 +22,42 @@ def render(info):
     holdings = info[0]["holdings"]
     profit = info[0]["profit"]
 
-    print("Transactions: \n")
+
+    transToHtml = "<table class='table'><thead><th>Action</th><th>Coin Price</th><th>Earns</th><th>Holding Coins</th><th>Current Balance</th><th>Step</th></thead>"
     for x in transactions:
-        print("\t\t", x.__str__())
+        transToHtml += "<tr>"
 
-    # Render the environment to the screen
-    print(f'Balance: {balance}')
-    print(f'Holdings: {holdings}')
-    print(f'Profit: {profit}')
+        transToHtml += "<td>"+x.type+"</td>"
+        transToHtml += "<td>"+str(x.coinCurrentValue)+"</td>"
+        transToHtml += "<td>"+str(x.earns)+"</td>"
+        transToHtml += "<td>"+str(x.coinsAmount)+"</td>"
+        transToHtml += "<td>"+str(x.currentBalance)+"</td>"
+        transToHtml += "<td>"+str(x.step)+"</td>"
 
+        transToHtml += "</tr>"
+
+    transToHtml += "</table>"
+
+    #create html file
+    file_html = open("predict_output.html", "w")
+
+    #adding data
+    file_html.write('''<html>
+    <head>
+    <title>Predict Output</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    </head> 
+    <body>
+    <h1>Predict Output</h1>
+    <h2>Balance: {0}$</h2>
+    <h2>holdings: {1} coins</h2>
+    <h2>Profit: {2}$</h2>
+    <h3>Transactions: </h3>
+    {3}
+    </body>
+    </html>'''.format(round(balance,2), holdings, round(profit,2), transToHtml))
+
+    file_html.close()
 
 obs = env.reset()
 

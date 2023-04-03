@@ -18,7 +18,7 @@ INIT_BALANCE = 5e4
 MAX_STEPS = 2e5
 
 # trade fee when buying or selling
-TRADE_FEE = 0.001
+#TRADE_FEE = 0.1
 
 
 class Wallet:
@@ -34,21 +34,22 @@ class Transaction:
     '''
     regist a transaction
     '''
-    transType = {0: "buy", 2: "sell"}
+    transType = {0: "buy", 1: "hold", 2: "sell"}
 
-    def __init__(self, action, coinCurrentValue, earns, paidFee, w, coinsAmount):
+    def __init__(self, step, action, coinCurrentValue, earns, w, coinsAmount):
+        self.step = step
         self.type = self.transType[action]
         self.coinCurrentValue = coinCurrentValue 
         self.earns = earns
         self.coinsAmount = coinsAmount
-        self.paidFee = paidFee
         self.currentBalance = w.balance
         
     def __str__(self):
-        print("Transaction Type (",self.type,") \n coin current value (",self.coinCurrentValue,") \n earns (",self.earns,") \n paid fee (",self.paidFee,")  \n coins earned (",self.coinsAmount,") \n current balance (",self.currentBalance,")")
+        print("Transaction Type (",self.type,") \n coin current value (",self.coinCurrentValue,") \n earns (",self.earns,") \n coins earned (",self.coinsAmount,") \n current balance (",self.currentBalance,")")
         
 
 class CryptoTradingEnv(gym.Env):
+
     def __init__(self, extData):
         super(CryptoTradingEnv, self).__init__()
 
@@ -85,6 +86,28 @@ class CryptoTradingEnv(gym.Env):
         '''
         return (self.wallet.balance + self.wallet.holdings * currentCoinPrice) - INIT_BALANCE
 
+    def buy(self, current_price):
+        coins_to_buy = self.wallet.balance / current_price
+        earns = coins_to_buy * current_price
+
+        self.wallet.balance = round(self.wallet.balance - earns, 8)
+        self.wallet.holdings += coins_to_buy
+
+        self.transactions.append(Transaction(self.current_step, 0, current_price, -earns, self.wallet, coins_to_buy))
+
+        #return earns
+
+    def sell(self, current_price): 
+        earns = self.wallet.holdings * current_price
+
+        self.wallet.balance += earns
+        self.wallet.holdings -= self.wallet.holdings 
+
+        self.transactions.append(Transaction(self.current_step, 2, current_price, earns, self.wallet, self.wallet.holdings))
+        
+
+        #return earns
+
     def step(self, action):
         done = False
 
@@ -93,24 +116,16 @@ class CryptoTradingEnv(gym.Env):
 
         if action == 0 and self.wallet.balance > 0:  # Buy
             # Determine the number of coins that can be purchased
-            coins_to_buy = self.wallet.balance / current_price
-            calc = coins_to_buy * current_price
-            fee = calc * TRADE_FEE
-            earns = calc - fee
-
-            self.wallet.balance = round(self.wallet.balance - (earns + fee), 8)
-            self.wallet.holdings += coins_to_buy
-            self.transactions.append(Transaction(action, current_price, -earns, fee, self.wallet, coins_to_buy))
-
+            self.buy(current_price)
+            
+            
         elif action == 2 and self.wallet.holdings > 0:  # Sell
             # TODO: change line to sell chosen amount instead of everything DCA (Dollar Cost Averaging)
-            calc = self.wallet.holdings * current_price
-            fee = calc * TRADE_FEE
-            earns = calc - fee
-
-            self.wallet.balance += earns
-            self.wallet.holdings -= self.wallet.holdings 
-            self.transactions.append(Transaction(action, current_price, earns, fee, self.wallet, self.wallet.holdings))
+            self.sell(current_price)
+        
+        else:
+            self.transactions.append(Transaction(self.current_step, 1, current_price, 0, self.wallet, self.wallet.holdings))
+            
 
         # Calculate the reward as the change in portfolio value
         reward = self.rewardSys(current_price)
