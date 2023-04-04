@@ -6,10 +6,13 @@ import pandas as pd
 import numpy as np
 
 # time horizon of data that agent will analyze
-DAYS = 24
+DAYS = 92 # implicit DAYS - 2 so always add +2
 
-# all considered variables in the observation space
+# all considered variables from data file in the observation space
 CONSIDER_VARIABLES = 6
+
+# custom variables
+CUSTOM_VARIABLES = 2
 
 # initial balance
 INIT_BALANCE = 5e4
@@ -36,13 +39,14 @@ class Transaction:
     '''
     transType = {0: "buy", 1: "hold", 2: "sell"}
 
-    def __init__(self, step, action, coinCurrentValue, earns, w, coinsAmount):
+    def __init__(self, step, action, coinCurrentValue, earns, w, coinsAmount, reward):
         self.step = step
         self.type = self.transType[action]
         self.coinCurrentValue = coinCurrentValue 
         self.earns = earns
         self.coinsAmount = coinsAmount
         self.currentBalance = w.balance
+        self.reward = reward
         
     def __str__(self):
         print("Transaction Type (",self.type,") \n coin current value (",self.coinCurrentValue,") \n earns (",self.earns,") \n coins earned (",self.coinsAmount,") \n current balance (",self.currentBalance,")")
@@ -58,7 +62,7 @@ class CryptoTradingEnv(gym.Env):
         #self.observation_space = spaces.Box(
         #    low=0, high=np.inf, shape=(CONSIDER_VARIABLES, DAYS), dtype=np.float32)
         self.observation_space = spaces.Box(
-            low=0, high=np.inf, shape=(CONSIDER_VARIABLES + 3,), dtype=np.float64)
+            low=0, high=np.inf, shape=(CONSIDER_VARIABLES + CUSTOM_VARIABLES,), dtype=np.float64)
         
         self.df = extData
 
@@ -76,24 +80,50 @@ class CryptoTradingEnv(gym.Env):
             self.sample[4][self.current_step],
             self.sample[5][self.current_step],
             ], dtype=np.float64), 
-            np.array([self.wallet.balance, self.wallet.holdings, self.wallet.balance + self.wallet.holdings * self.df.loc[self.current_step, 'open']], dtype=np.float64) )
+            # custom variables
+            np.array([self.wallet.balance, self.wallet.holdings], dtype=np.float64))
 
         return observation
 
-    def  rewardSys(self, currentCoinPrice):
+    def  rewardSys(self, action, currentCoinPrice, valid):
         '''
         computes reward
+
         '''
-        return (self.wallet.balance + self.wallet.holdings * currentCoinPrice) - INIT_BALANCE
+        reward = 0
+
+        if valid:
+            if action == 1 and self.current_step > 0:
+                if int(self.wallet.balance) > 0:
+
+                    if(currentCoinPrice > self.sample[3][self.current_step -1]):
+                        reward = - currentCoinPrice
+                    elif (currentCoinPrice < self.sample[3][self.current_step -1]):
+                        reward = currentCoinPrice
+                    else:
+                        reward = 0
+
+                elif int(self.wallet.holdings) > 0:
+
+                    if(currentCoinPrice > self.sample[3][self.current_step -1]):
+                        reward = currentCoinPrice * 2
+                    elif (currentCoinPrice < self.sample[3][self.current_step -1]):
+                        reward = - currentCoinPrice * 2
+                    else:
+                        reward = 0
+        else:
+            reward = -2
+
+        return reward
 
     def buy(self, current_price):
         coins_to_buy = self.wallet.balance / current_price
-        earns = coins_to_buy * current_price
+        earns = round(coins_to_buy * current_price, 8)
 
-        self.wallet.balance = round(self.wallet.balance - earns, 8)
+        self.wallet.balance = abs(round(self.wallet.balance - earns, 8))
         self.wallet.holdings += coins_to_buy
 
-        self.transactions.append(Transaction(self.current_step, 0, current_price, -earns, self.wallet, coins_to_buy))
+        return -earns
 
         #return earns
 
@@ -103,32 +133,37 @@ class CryptoTradingEnv(gym.Env):
         self.wallet.balance += earns
         self.wallet.holdings -= self.wallet.holdings 
 
-        self.transactions.append(Transaction(self.current_step, 2, current_price, earns, self.wallet, self.wallet.holdings))
+        return earns
         
 
         #return earns
 
     def step(self, action):
         done = False
+        valid = True
 
         # Fetch the current price
-        current_price = self.df.loc[self.current_step, 'close']
+        current_price = self.sample[3][self.current_step]
 
         if action == 0 and self.wallet.balance > 0:  # Buy
             # Determine the number of coins that can be purchased
-            self.buy(current_price)
-            
+            earns = self.buy(current_price)
+
+        elif action == 1:
+            earns = 0
             
         elif action == 2 and self.wallet.holdings > 0:  # Sell
             # TODO: change line to sell chosen amount instead of everything DCA (Dollar Cost Averaging)
-            self.sell(current_price)
-        
+            earns = self.sell(current_price)
+
         else:
-            self.transactions.append(Transaction(self.current_step, 1, current_price, 0, self.wallet, self.wallet.holdings))
-            
+            earns = None
+            valid = False
 
         # Calculate the reward as the change in portfolio value
-        reward = self.rewardSys(current_price)
+        reward = self.rewardSys(action, current_price, valid)
+
+        self.transactions.append(Transaction(self.current_step, action, current_price, earns, self.wallet, self.wallet.holdings, reward))
 
         # Check if the episode is done
         self.current_step += 1

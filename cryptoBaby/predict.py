@@ -13,7 +13,7 @@ env = DummyVecEnv([lambda: CryptoTradingEnv(df)])
 
 model = PPO("MlpPolicy", env, verbose=1)
 
-model.load("dummy")
+model.load("ppo_dummy")
 
 
 def render(info):
@@ -23,16 +23,25 @@ def render(info):
     profit = info[0]["profit"]
 
 
-    transToHtml = "<table class='table'><thead><th>Action</th><th>Coin Price</th><th>Earns</th><th>Holding Coins</th><th>Current Balance</th><th>Step</th></thead>"
+    transToHtml = "<table class='table'><thead><th>Action</th><th>Coin Price</th><th>Earns</th><th>Holding Coins</th><th>Current Balance</th><th>Step</th><th>Reward</th></thead>"
     for x in transactions:
         transToHtml += "<tr>"
 
         transToHtml += "<td>"+x.type+"</td>"
         transToHtml += "<td>"+str(x.coinCurrentValue)+"</td>"
-        transToHtml += "<td>"+str(x.earns)+"</td>"
+        transToHtml += "<td>"+str(x.earns)+"</td>" if(x.earns != None) else "<td style='color:red'>No valid operation</td>"
         transToHtml += "<td>"+str(x.coinsAmount)+"</td>"
         transToHtml += "<td>"+str(x.currentBalance)+"</td>"
         transToHtml += "<td>"+str(x.step)+"</td>"
+
+        if x.reward > 0:
+            transToHtml += "<td style='color:green'>"+str(x.reward)+"</td>"
+        elif x.reward < 0:
+            transToHtml += "<td style='color:red'>"+str(x.reward)+"</td>"
+        else:
+            transToHtml += "<td style='color:orange'>"+str(x.reward)+"</td>"
+
+        
 
         transToHtml += "</tr>"
 
@@ -63,7 +72,7 @@ obs = env.reset()
 
 while True:
     action, _states = model.predict(obs)
-    obs, rewards, done, info = env.step(action)
+    obs, reward, done, info = env.step(action)
     
     if done:
         render(info)

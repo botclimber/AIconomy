@@ -12,13 +12,10 @@ import pandas as pd
 df = pd.read_csv('./data/IDNA.csv')
 df = df.sort_values('timestamp')
 
-#df = pd.read_csv('./data/AAPL.csv')
-#df = df.sort_values('Date')
-
 # The algorithms require a vectorized environment to run
 env = DummyVecEnv([lambda: CryptoTradingEnv(df)])
 
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=1000000)
+model = PPO("MlpPolicy", env, verbose=1, tensorboard_log="./ppo_train_log/")
+model.learn(total_timesteps=1e6, reset_num_timesteps=False)
 
-model.save("dummy")
+model.save("ppo_dummy")
