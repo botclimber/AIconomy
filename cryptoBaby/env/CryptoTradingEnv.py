@@ -5,8 +5,8 @@ from gym import spaces
 import pandas as pd
 import numpy as np
 
-# Reward amplifier
-REWARD_AMPLIFIER = 100
+# depends on coin value
+AMPLIFIER_FOR_INVALID_OPERATION = 1
 
 # time horizon of data that agent will analyze
 DAYS = 92 # implicit DAYS - 2 so always add +2
@@ -15,7 +15,7 @@ DAYS = 92 # implicit DAYS - 2 so always add +2
 CONSIDER_VARIABLES = 6
 
 # custom variables
-CUSTOM_VARIABLES = 2
+CUSTOM_VARIABLES = 3
 
 # initial balance
 INIT_BALANCE = 5e4
@@ -84,7 +84,7 @@ class CryptoTradingEnv(gym.Env):
             self.sample[5][self.current_step],
             ], dtype=np.float64), 
             # custom variables
-            np.array([self.wallet.balance, self.wallet.holdings], dtype=np.float64))
+            np.array([self.wallet.balance, self.wallet.holdings, self.wallet.balance - INIT_BALANCE], dtype=np.float64))
 
         return observation
 
@@ -93,29 +93,29 @@ class CryptoTradingEnv(gym.Env):
         computes reward
 
         '''
-        reward = 0.1
+        reward = 0
+        if self.current_step > 0:
+            if valid:
+                if action == 1:
+                    if self.wallet.balance > 0:
 
-        if valid:
-            if action == 1 and self.current_step > 0:
-                if self.wallet.balance > 0:
+                        if(currentCoinPrice < self.sample[3][self.current_step -1]):
+                            reward = currentCoinPrice
+                        if (currentCoinPrice > self.sample[3][self.current_step -1]):
+                            reward = - currentCoinPrice
+                        else:
+                            reward = 0
 
-                    if(currentCoinPrice < self.sample[3][self.current_step -1]):
-                        reward = currentCoinPrice * REWARD_AMPLIFIER
-                    #if (currentCoinPrice > self.sample[3][self.current_step -1]):
-                    #    reward = - currentCoinPrice
-                    #else:
-                    #    reward = 0
+                    elif self.wallet.holdings > 0:
 
-                elif self.wallet.holdings > 0:
-
-                    if(currentCoinPrice > self.sample[3][self.current_step -1]):
-                        reward = currentCoinPrice * 2 * REWARD_AMPLIFIER
-                    #elif (currentCoinPrice < self.sample[3][self.current_step -1]):
-                    #    reward = - currentCoinPrice * 2
-                    #else:
-                    #    reward = 0
-        else:
-            reward = - REWARD_AMPLIFIER
+                        if(currentCoinPrice > self.sample[3][self.current_step -1]):
+                            reward = currentCoinPrice * 2
+                        elif (currentCoinPrice < self.sample[3][self.current_step -1]):
+                            reward = - currentCoinPrice * 2
+                        else:
+                            reward = 0
+            else:
+                reward = - (currentCoinPrice + AMPLIFIER_FOR_INVALID_OPERATION)
 
         return reward
 
@@ -137,10 +137,7 @@ class CryptoTradingEnv(gym.Env):
         self.wallet.holdings -= self.wallet.holdings 
 
         return earns
-        
-
-        #return earns
-
+    
     def step(self, action):
         done = False
         valid = True
