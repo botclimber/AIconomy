@@ -5,6 +5,9 @@ from gym import spaces
 import pandas as pd
 import numpy as np
 
+# Reward amplifier
+REWARD_AMPLIFIER = 100
+
 # time horizon of data that agent will analyze
 DAYS = 92 # implicit DAYS - 2 so always add +2
 
@@ -90,29 +93,29 @@ class CryptoTradingEnv(gym.Env):
         computes reward
 
         '''
-        reward = 0
+        reward = 0.1
 
         if valid:
             if action == 1 and self.current_step > 0:
-                if int(self.wallet.balance) > 0:
+                if self.wallet.balance > 0:
+
+                    if(currentCoinPrice < self.sample[3][self.current_step -1]):
+                        reward = currentCoinPrice * REWARD_AMPLIFIER
+                    #if (currentCoinPrice > self.sample[3][self.current_step -1]):
+                    #    reward = - currentCoinPrice
+                    #else:
+                    #    reward = 0
+
+                elif self.wallet.holdings > 0:
 
                     if(currentCoinPrice > self.sample[3][self.current_step -1]):
-                        reward = - currentCoinPrice
-                    elif (currentCoinPrice < self.sample[3][self.current_step -1]):
-                        reward = currentCoinPrice
-                    else:
-                        reward = 0
-
-                elif int(self.wallet.holdings) > 0:
-
-                    if(currentCoinPrice > self.sample[3][self.current_step -1]):
-                        reward = currentCoinPrice * 2
-                    elif (currentCoinPrice < self.sample[3][self.current_step -1]):
-                        reward = - currentCoinPrice * 2
-                    else:
-                        reward = 0
+                        reward = currentCoinPrice * 2 * REWARD_AMPLIFIER
+                    #elif (currentCoinPrice < self.sample[3][self.current_step -1]):
+                    #    reward = - currentCoinPrice * 2
+                    #else:
+                    #    reward = 0
         else:
-            reward = -2
+            reward = - REWARD_AMPLIFIER
 
         return reward
 
@@ -149,7 +152,7 @@ class CryptoTradingEnv(gym.Env):
             # Determine the number of coins that can be purchased
             earns = self.buy(current_price)
 
-        elif action == 1:
+        elif action == 1: # Hold
             earns = 0
             
         elif action == 2 and self.wallet.holdings > 0:  # Sell

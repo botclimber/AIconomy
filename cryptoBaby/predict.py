@@ -13,7 +13,7 @@ env = DummyVecEnv([lambda: CryptoTradingEnv(df)])
 
 model = PPO("MlpPolicy", env, verbose=1)
 
-model.load("ppo_dummy")
+model.load("training/ppo_dummy")
 
 
 def render(info):
